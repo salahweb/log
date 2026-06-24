@@ -1,119 +1,24 @@
-(function() {
-    // الرابط الفعلي الخاص بتطبيق الويب لجوجل سكريبت
-    const API_URL = "https://script.google.com/macros/s/AKfycbzxEIb1BsVa-sG7kbmLGSBr65V2b8gHP39ixosiWIXeXRjZSw19sTFFe7imZTgQnvQ/exec";
-
-    // التحقق من وجود حاوية الحقن في الصفحة المضيفة
-    const container = document.getElementById("auth-widget-container");
-    if (!container) {
-        console.error("نظام الدخول: يرجى إضافة العنصر <div id='auth-widget-container'></div> إلى صفحة الـ HTML الخاصة بك.");
-        return;
-    }
-
-    // بناء الواجهة والتنسيقات الهيكلية الأساسية مضمنة برمجياً لضمان العزل التام
-    container.style.fontFamily = "Arial, sans-serif";
-    container.style.maxWidth = "340px";
-    container.style.margin = "30px auto";
-    container.style.padding = "25px";
-    container.style.border = "1px solid #e0e0e0";
-    container.style.borderRadius = "8px";
-    container.style.boxShadow = "0 4px 12px rgba(0,0,0,0.05)";
-    container.style.textAlign = "center";
-    container.style.direction = "rtl";
-
-    container.innerHTML = `
-        <h3 style="margin-top:0; color: #222; font-size: 20px; margin-bottom: 20px;">تسجيل الدخول الآمن</h3>
-        
-        <div id="step1-email">
-            <input type="email" id="widget-email" placeholder="أدخل بريدك الإلكتروني" style="width: 100%; padding: 12px; margin-bottom: 15px; box-sizing: border-box; border: 1px solid #ccc; border-radius: 4px; font-size: 14px;" required>
-            <button id="btn-send" style="width: 100%; padding: 12px; background: #007bff; color: white; border: none; border-radius: 4px; cursor: pointer; font-weight: bold; font-size: 14px;">إرسال رمز التحقق (OTP)</button>
-        </div>
-        
-        <div id="step2-otp" style="display: none;">
-            <p style="font-size: 13px; color: #666; margin-bottom: 15px;">تم إرسال الرمز إلى بريدك الإلكتروني، يرجى إدخاله للمتابعة:</p>
-            <input type="text" id="widget-otp" placeholder="الرمز المتكون من 6 أرقام" style="width: 100%; padding: 12px; margin-bottom: 15px; box-sizing: border-box; border: 1px solid #ccc; border-radius: 4px; text-align: center; letter-spacing: 4px; font-size: 16px; font-weight: bold;">
-            <button id="btn-verify" style="width: 100%; padding: 12px; background: #28a745; color: white; border: none; border-radius: 4px; cursor: pointer; font-weight: bold; font-size: 14px;">تأكيد وصلاحية الدخول</button>
-        </div>
-        
-        <p id="widget-msg" style="margin-top: 15px; font-size: 13px; color: #555; min-height: 20px; line-height: 1.5;"></p>
-    `;
-
-    // تعيين عناصر واجهة المستخدم
-    const step1 = document.getElementById("step1-email");
-    const step2 = document.getElementById("step2-otp");
-    const emailInput = document.getElementById("widget-email");
-    const otpInput = document.getElementById("widget-otp");
-    const btnSend = document.getElementById("btn-send");
-    const btnVerify = document.getElementById("btn-verify");
-    const msg = document.getElementById("widget-msg");
-
-    let userEmail = "";
-
-    // منطق طلب وتوليد الـ OTP
-    btnSend.addEventListener("click", function() {
-        userEmail = emailInput.value.trim();
-        if (!userEmail) {
-            updateStatus("يرجى كتابة البريد الإلكتروني أولاً.", "red");
-            return;
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>بوابة تسجيل الدخول الآمنة</title>
+    <style>
+        body {
+            background-color: #f8fafc; /* خلفية رمادية ناعمة ومريحة للعين */
+            margin: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh; /* جعل النموذج يتوسط الشاشة تماماً بالطول والعرض */
         }
+    </style>
+</head>
+<body>
 
-        updateStatus("جاري معالجة الطلب وتوليد الرمز...", "blue");
-        btnSend.disabled = true;
+    <div id="auth-widget-container"></div>
 
-        fetch(`${API_URL}?action=generate&email=${encodeURIComponent(userEmail)}`)
-            .then(res => res.json())
-            .then(data => {
-                btnSend.disabled = false;
-                if (data.status === "success") {
-                    updateStatus("تم إرسال رمز التحقق بنجاح إلى بريدك الالكتروني.", "green");
-                    step1.style.display = "none";
-                    step2.style.display = "block";
-                } else {
-                    updateStatus(data.message || "فشل إرسال الرمز، تحقق من صحة البيانات.", "red");
-                }
-            })
-            .catch(err => {
-                btnSend.disabled = false;
-                updateStatus("حدث خطأ أثناء الاتصال بالخادم السحابي.", "red");
-                console.error("Fetch Error:", err);
-            });
-    });
-
-    // منطق مطابقة الـ OTP المكتوب
-    btnVerify.addEventListener("click", function() {
-        const otp = otpInput.value.trim();
-        if (!otp) {
-            updateStatus("يرجى إدخال رمز الـ OTP المستلم.", "red");
-            return;
-        }
-
-        updateStatus("جاري فحص الرمز وتوثيق الجلسة...", "blue");
-        btnVerify.disabled = true;
-
-        fetch(`${API_URL}?action=verify&email=${encodeURIComponent(userEmail)}&otp=${encodeURIComponent(otp)}`)
-            .then(res => res.json())
-            .then(data => {
-                btnVerify.disabled = false;
-                if (data.status === "success") {
-                    updateStatus("مرحباً بك، تم تسجيل الدخول بنجاح!", "green");
-                    step2.style.display = "none";
-                    
-                    // السلوك الاحترافي التالي للنجاح (مثال: توجيه للوحة التحكم بعد ثانية واحدة)
-                    // setTimeout(() => { window.location.href = "dashboard.html"; }, 1500);
-                } else {
-                    updateStatus(data.message || "رمز التحقق غير صحيح، حاول مرة أخرى.", "red");
-                }
-            })
-            .catch(err => {
-                btnVerify.disabled = false;
-                updateStatus("فشل الاتصال بالخادم للتحقق من الرمز.", "red");
-            });
-    });
-
-    // دالة مساعدة لتحديث نصوص الحالات والألوان
-    function updateStatus(text, color) {
-        msg.innerText = text;
-        if (color === "red") msg.style.color = "#dc3545";
-        else if (color === "green") msg.style.color = "#28a745";
-        else if (color === "blue") msg.style.color = "#007bff";
-    }
-})();
+    <script src="widget.js"></script>
+</body>
+</html>
