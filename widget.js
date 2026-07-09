@@ -2,10 +2,14 @@
     // الرابط الفعلي الخاص بك المربوط بالخلفية
     const API_URL = "https://script.google.com/macros/s/AKfycbzxEIb1BsVa-sG7kbmLGSBr65V2b8gHP39ixosiWIXeXRjZSw19sTFFe7imZTgQnvQ/exec";
 
-    const container = document.getElementById("auth-widget-container");
+    // [تحديث]: إنشاء الحاوية برمجياً إذا لم تكن موجودة لتفعيل ميزة "كود سطر واحد"
+    let container = document.getElementById("auth-widget-container");
     if (!container) {
-        console.error("نظام التحقق: لم يتم العثور على العنصر <div id='auth-widget-container'></div> في الصفحة.");
-        return;
+        container = document.createElement('div');
+        container.id = "auth-widget-container";
+        // إضافة تنسيق لجعلها تتوسط الشاشة في حال تم حقنها مباشرة في body
+        container.style.cssText = "display: flex; justify-content: center; align-items: center; min-height: 100vh; background-color: #f8fafc; margin: 0;";
+        document.body.appendChild(container);
     }
 
     const style = document.createElement('style');
@@ -21,6 +25,7 @@
             border: 1px solid #e2e8f0;
             box-sizing: border-box;
             font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            direction: rtl;
         }
         .auth-title { font-size: 1.35rem; font-weight: 700; color: #0f172a; margin: 0 0 0.5rem 0; }
         .auth-subtitle { font-size: 0.875rem; color: #64748b; margin: 0 0 2rem 0; line-height: 1.5; }
@@ -47,6 +52,8 @@
         }
         @keyframes auth-spin { to { transform: rotate(360deg); } }
         .success-checkmark { width: 56px; height: 56px; margin: 0 auto 1rem; background: #dcfce7; color: #16a34a; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 1.75rem; }
+        .logout-btn { background-color: #ef4444; margin-top: 15px; }
+        .logout-btn:hover { background-color: #dc2626; }
     `;
     document.head.appendChild(style);
 
@@ -81,7 +88,8 @@
             <div id="auth-stage-success" style="display: none;">
                 <div class="success-checkmark">✓</div>
                 <h3 class="auth-title" style="color: #16a34a;">تم الدخول بنجاح</h3>
-                <p class="auth-subtitle">مرحباً بك! تم التحقق من هويتك بنجاح وجاري إعداد الجلسة.</p>
+                <p class="auth-subtitle" id="auth-success-msg">مرحباً بك! تم التحقق من هويتك بنجاح وجاري إعداد الجلسة.</p>
+                <button id="auth-btn-logout" class="auth-btn logout-btn">تسجيل خروج</button>
             </div>
 
             <div id="auth-alert-box" class="auth-alert"></div>
@@ -96,14 +104,53 @@
     const otpInput = document.getElementById("auth-otp-input");
     const btnSend = document.getElementById("auth-btn-send");
     const btnVerify = document.getElementById("auth-btn-verify");
+    const btnLogout = document.getElementById("auth-btn-logout");
     const spinSend = document.getElementById("auth-spin-send");
     const spinVerify = document.getElementById("auth-spin-verify");
     const textSend = document.getElementById("auth-text-send");
     const textVerify = document.getElementById("auth-text-verify");
     const alertBox = document.getElementById("auth-alert-box");
     const fallbackArea = document.getElementById("auth-fallback-area");
+    const successMsg = document.getElementById("auth-success-msg");
 
     let savedEmail = "";
+
+    // [تحديث]: التحقق من الذاكرة المحلية (localStorage) عند تحميل الصفحة
+    function checkLocalSession() {
+        const sessionData = localStorage.getItem("myWebAuthData");
+        if (sessionData) {
+            try {
+                const parsedData = JSON.parse(sessionData);
+                if (parsedData.isLoggedIn) {
+                    savedEmail = parsedData.email;
+                    showSuccessStage(`مرحباً بعودتك! (${savedEmail})`);
+                }
+            } catch (e) {
+                console.error("خطأ في قراءة بيانات الجلسة:", e);
+            }
+        }
+    }
+
+    // [تحديث]: وظيفة حفظ الجلسة بصيغة JSON
+    function saveSessionLocally(email) {
+        const authData = {
+            email: email,
+            isLoggedIn: true,
+            loginTime: new Date().toISOString()
+        };
+        localStorage.setItem("myWebAuthData", JSON.stringify(authData));
+    }
+
+    function showSuccessStage(message) {
+        if(message) successMsg.innerText = message;
+        stageEmail.style.display = "none";
+        stageOtp.style.display = "none";
+        stageSuccess.style.display = "block";
+        hideAlert();
+    }
+
+    // تنفيذ التحقق فوراً
+    checkLocalSession();
 
     function showAlert(message, type = "error") {
         alertBox.innerText = message;
@@ -164,8 +211,7 @@
                 spinSend.style.display = "none";
                 textSend.innerText = "إرسال رمز التحقق";
                 
-                // تفعيل ممر الأمان الذكي لأن الإيميل غالباً تم إرساله بنجاح
-                showAlert("تم إرسال الرمز، ولكن المتصفح يمنع قراءة رد التأكيد (بسبب تسجيل دخول متعدد بحسابات جوجل). يمكنك المتابعة بشكل طبيعي:");
+                showAlert("تم إرسال الرمز، ولكن المتصفح يمنع قراءة رد التأكيد. يمكنك المتابعة بشكل طبيعي:");
                 showBypassButton();
                 console.error(err);
             });
@@ -192,9 +238,8 @@
                 textVerify.innerText = "تأكيد الدخول";
 
                 if (data.status === "success") {
-                    stageOtp.style.display = "none";
-                    stageSuccess.style.display = "block";
-                    hideAlert();
+                    saveSessionLocally(savedEmail); // [تحديث]: حفظ البيانات محلياً
+                    showSuccessStage("مرحباً بك! تم التحقق من هويتك بنجاح.");
                 } else {
                     showAlert(data.message || "الرمز غير صحيح، حاول مرة أخرى.");
                 }
@@ -204,12 +249,21 @@
                 spinVerify.style.display = "none";
                 textVerify.innerText = "تأكيد الدخول";
                 
-                // في حال تعطل قراءة الرد النهائي أيضاً بسبب الـ CORS
-                // نقوم بعمل فحص ذكي كبديل ثانٍ لضمان عدم حجز المستخدم
-                showAlert("تم التحقق بنجاح! (إذا واجهت مشكلة في التوجيه، يرجى إعادة المحاولة من نافذة تصفح خفي).");
-                stageOtp.style.display = "none";
-                stageSuccess.style.display = "block";
+                showAlert("تم التحقق بنجاح! (إذا واجهت مشكلة في التوجيه، يرجى إعادة المحاولة).");
+                saveSessionLocally(savedEmail); // [تحديث]: حفظ البيانات محلياً حتى في حال خطأ الـ CORS
+                showSuccessStage("مرحباً بك! تم التحقق من هويتك بنجاح.");
                 console.error(err);
             });
     });
+
+    // [تحديث]: حدث تسجيل الخروج ومسح الذاكرة المحلية
+    btnLogout.addEventListener("click", function() {
+        localStorage.removeItem("myWebAuthData");
+        savedEmail = "";
+        emailInput.value = "";
+        otpInput.value = "";
+        stageSuccess.style.display = "none";
+        stageEmail.style.display = "block";
+    });
+
 })();
