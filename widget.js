@@ -237,10 +237,16 @@
                 spinVerify.style.display = "none";
                 textVerify.innerText = "تأكيد الدخول";
 
-                if (data.status === "success") {
-                    saveSessionLocally(savedEmail); // [تحديث]: حفظ البيانات محلياً
-                    showSuccessStage("مرحباً بك! تم التحقق من هويتك بنجاح.");
-                } else {
+                saveSessionLocally(savedEmail);
+
+const params = new URLSearchParams(window.location.search);
+const returnPage = params.get("return");
+
+if (returnPage) {
+    window.location.replace(decodeURIComponent(returnPage));
+} else {
+    showSuccessStage("مرحباً بك! تم التحقق من هويتك بنجاح.");
+} else {
                     showAlert(data.message || "الرمز غير صحيح، حاول مرة أخرى.");
                 }
             })
