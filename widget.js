@@ -3,7 +3,7 @@
     if (window.__LUXEVA_WIDGET__) return;
     window.__LUXEVA_WIDGET__ = true;
 
-    // ====== التأكد من وجود Auth ======
+    // التأكد من وجود Auth
     if (typeof Auth === "undefined") {
         document.body.innerHTML = `
             <div style="text-align:center; padding:2rem; font-family:system-ui,sans-serif;">
