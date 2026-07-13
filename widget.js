@@ -3,13 +3,20 @@
     if (window.__LUXEVA_WIDGET__) return;
     window.__LUXEVA_WIDGET__ = true;
 
+    // ====== التأكد من وجود Auth ======
+    if (typeof Auth === "undefined") {
+        document.body.innerHTML = `
+            <div style="text-align:center; padding:2rem; font-family:system-ui,sans-serif;">
+                <h2>خطأ في تحميل النظام</h2>
+                <p>يرجى تحديث الصفحة أو الاتصال بمدير الموقع.</p>
+            </div>`;
+        return;
+    }
+
     const CONFIG = {
         API_URL: "https://script.google.com/macros/s/AKfycbzxEIb1BsVa-sG7kbmLGSBr65V2b8gHP39ixosiWIXeXRjZSw19sTFFe7imZTgQnvQ/exec",
         CONTAINER_ID: "luxeva-auth-container"
     };
-
-    // التأكد من تحميل auth.js
-    if (typeof Auth === "undefined") throw new Error("auth.js must be loaded before widget.js");
 
     let state = {
         savedEmail: "",
@@ -202,23 +209,19 @@
 
     // ---------- بدء التشغيل ----------
     function init() {
-        // التحقق من الجلسة أولاً قبل بناء أي واجهة
         const session = Auth.load();
         if (session && Auth.isValid(session)) {
             const returnPage = new URLSearchParams(location.search).get("return");
             if (returnPage) {
                 window.location.replace(decodeURIComponent(returnPage));
-                return; // لا تنشئ الواجهة
+                return;
             }
-            // إذا لم يوجد return، سيتم عرض شاشة النجاح بعد بناء الواجهة
         }
 
-        // بناء الواجهة (لن يحدث وميض لأننا إما حولنا أو سنعرض النجاح)
         injectStyles();
         buildUI(createContainer());
         bindEvents();
 
-        // عرض شاشة النجاح إذا كانت الجلسة صالحة
         if (session && Auth.isValid(session)) {
             state.savedEmail = session.email;
             state.uiElements.successMsg.textContent = `مرحباً بعودتك! (${session.email})`;
